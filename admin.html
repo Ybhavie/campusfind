@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CampusFind | Admin</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f2f4f8; margin: 0; }
+    nav { background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.08); padding: 12px 20px; display: flex; gap: 16px; align-items: center; }
+    nav .brand { font-weight: bold; font-size: 18px; margin-right: auto; }
+    nav a { text-decoration: none; color: #444; padding: 6px 12px; border-radius: 6px; font-size: 14px; }
+    nav a.active { background: #2563eb; color: #fff; }
+    .wrap { max-width: 1000px; margin: 28px auto; padding: 0 16px; }
+    .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .top h2 { margin: 0; margin-right: auto; }
+    .top select, .top button, .top input { padding: 8px 10px; border: 1px solid #bbb; border-radius: 6px; font-size: 14px; background: #fff; }
+    .top button { background: #2563eb; color: #fff; border: 0; cursor: pointer; }
+    .note { font-size: 13px; color: #6b7280; margin-bottom: 12px; }
+    .tablebox { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.1); overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    th { background: #f9fafb; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #555; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: bold; }
+    .LOST { background: #fee2e2; color: #991b1b; }
+    .FOUND { background: #dcfce7; color: #166534; }
+    td img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; }
+    #state { padding: 20px; text-align: center; color: #555; }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="brand">CampusFind</span>
+    <a href="index.html">Student</a>
+    <a class="active" href="admin.html">Admin</a>
+  </nav>
+  <div class="wrap">
+    <div class="top">
+      <h2>Saved reports</h2>
+      <input id="search" type="search" placeholder="Search name or item">
+      <select id="filter">
+        <option value="">All</option>
+        <option value="LOST">Lost</option>
+        <option value="FOUND">Found</option>
+      </select>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+    <div class="note">Admin login is not added yet, so this page is open to anyone with the link.</div>
+    <div class="tablebox">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Type</th><th>Name</th><th>Email</th><th>Details</th><th>Photo</th><th>Date</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="state">Loading...</div>
+    </div>
+  </div>
+
+  <script>
+    var API = "https://humble-capybara-v6gq4976ww9whx9wr-80.app.github.dev";
+    var allRows = [];
+
+    function el(tag, text, cls) {
+      var e = document.createElement(tag);
+      if (text !== undefined) e.textContent = text;
+      if (cls) e.className = cls;
+      return e;
+    }
+
+    function render() {
+      var q = document.getElementById("search").value.toLowerCase();
+      var f = document.getElementById("filter").value;
+      var body = document.getElementById("rows");
+      var state = document.getElementById("state");
+      body.innerHTML = "";
+      var shown = 0;
+      allRows.forEach(function (r) {
+        var m = /^\[(LOST|FOUND)\]\s*/.exec(r.message || "");
+        var type = m ? m[1] : "";
+        var text = (r.message || "").replace(/^\[(LOST|FOUND)\]\s*/, "");
+        if (f && type !== f) return;
+        if (q && (r.name + " " + text).toLowerCase().indexOf(q) === -1) return;
+        var tr = document.createElement("tr");
+        tr.appendChild(el("td", r.id));
+        var tdType = document.createElement("td");
+        tdType.appendChild(el("span", type || "-", "badge " + type));
+        tr.appendChild(tdType);
+        tr.appendChild(el("td", r.name));
+        tr.appendChild(el("td", r.email));
+        tr.appendChild(el("td", text));
+        var tdImg = document.createElement("td");
+        if (r.image) {
+          var a = document.createElement("a");
+          a.href = API + "/" + r.image; a.target = "_blank";
+          var img = document.createElement("img");
+          img.src = API + "/" + r.image; img.alt = "Item photo";
+          a.appendChild(img); tdImg.appendChild(a);
+        } else { tdImg.textContent = "-"; }
+        tr.appendChild(tdImg);
+        tr.appendChild(el("td", r.created_at || ""));
+        body.appendChild(tr);
+        shown++;
+      });
+      state.textContent = shown ? "" : "No reports yet.";
+    }
+
+    function load() {
+      var state = document.getElementById("state");
+      state.textContent = "Loading...";
+      fetch(API + "/list.php")
+        .then(function (r) { if (!r.ok) throw new Error("Server said " + r.status); return r.json(); })
+        .then(function (data) { allRows = data; render(); })
+        .catch(function (err) {
+          state.textContent = "Could not load reports (" + err.message + "). Check that the backend server is running.";
+        });
+    }
+
+    document.getElementById("refresh").addEventListener("click", load);
+    document.getElementById("search").addEventListener("input", render);
+    document.getElementById("filter").addEventListener("change", render);
+    load();
+  </script>
+</body>
+</html>
